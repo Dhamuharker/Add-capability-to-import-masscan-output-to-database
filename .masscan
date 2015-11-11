@@ -1,0 +1,130 @@
+
+This pull request copies the db_import and db_nmap related files and functions and adds capability to run masscan in the same way. Fixes #6208.
+
+Masscan results are similar to nmap but it runs asynchronously, operating more like scanrand, unicornscan, and ZMap.
+
+Homepage: https://github.com/robertdavidgraham/masscan
+Tested on: Masscan 1.0.3 (Mac OS 10.10.5, Kali Linux 2.0.0 (VirtualBox VM))
+Usage:
+
+    install Masscan (comes with Kali Linux)
+
+    modify permissions (if needed)
+    I ran my msfconsole as a non-root user per the instructions for setting up a metasploit development environment, on a Kali Linux VM. On Kali Linux I couldn't run masscan as non-root, so I created a group that could run the masscan command with CAP_NET_RAW and CAP_NET_ADMIN capabilities and added my user to it. I did not have to modify permissions on the Mac.
+
+    groupadd pcap
+    usermod -a -G pcap msfdev
+    chgrp pcap /usr/bin/masscan
+    chmod 750 /usr/bin/masscan
+    setcap cap_net_raw,cap_net_admin=eip /usr/bin/masscan
+
+    run db_import with a masscan xml file or db_masscan to import masscan results into msf database
+
+Example Output
+
+db_masscan shows up as an option in help menu
+
+msf > help
+...
+Database Backend Commands
+=========================
+
+    Command           Description
+    -------           -----------
+    creds             List all credentials in the database
+    db_connect        Connect to an existing database
+    db_disconnect     Disconnect from the current database instance
+    db_export         Export a file containing the contents of the database
+    db_import         Import a scan result file (filetype will be auto-detected)
+    db_masscan        Executes masscan and records the output automatically
+    db_nmap           Executes nmap and records the output automatically
+    db_rebuild_cache  Rebuilds the database-stored module cache
+    db_status         Show the current database status
+    hosts             List all hosts in the database
+    loot              List all loot in the database
+    notes             List all notes in the database
+    services          List all services in the database
+    vulns             List all vulnerabilities in the database
+    workspace         Switch between database workspaces
+
+Masscan XML also shows up as a supported file type under db_import
+
+msf > db_import
+Usage: db_import <filename> [file2...]
+
+Filenames can be globs like *.xml, or **/*.xml which will search recursively
+Currently supported file types include:
+    Acunetix
+    Amap Log
+    Amap Log -m
+    Appscan
+    Burp Session XML
+    CI
+    Foundstone
+    FusionVM XML
+    IP Address List
+    IP360 ASPL
+    IP360 XML v3
+    Libpcap Packet Capture
+    Masscan XML
+    Metasploit PWDump Export
+    Metasploit XML
+    Metasploit Zip Export
+    Microsoft Baseline Security Analyzer
+    NeXpose Simple XML
+    NeXpose XML Report
+    Nessus NBE Report
+    Nessus XML (v1)
+    Nessus XML (v2)
+    NetSparker XML
+    Nikto XML
+    Nmap XML
+    OpenVAS Report
+    OpenVAS XML
+    Outpost24 XML
+    Qualys Asset XML
+    Qualys Scan XML
+    Retina XML
+    Spiceworks CSV Export
+    Wapiti XML
+
+Running the db_masscan command
+
+msf > db_masscan -p80 192.168.22.0/24
+[*] Masscan: 'Starting masscan 1.0.3 (http://bit.ly/14GZzcT) at 2015-11-10 16:37:47 GMT'
+[*] Masscan: '-- forced options: -sS -Pn -n --randomize-hosts -v --send-eth'
+[*] Masscan: 'Initiating SYN Stealth Scan'
+[*] Masscan: 'Scanning 256 hosts [1 port/host]'
+rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=43'          ound=0       
+msf > hosts
+
+Hosts
+=====
+
+address      mac  name  os_name  os_flavor  os_sp  purpose  info  comments
+-------      ---  ----  -------  ---------  -----  -------  ----  --------
+192.168.22.48              Unknown                    device         
+192.168.22.59              Unknown                    device         
+192.168.22.65              Unknown                    device         
+192.168.22.68              Unknown                    device         
+192.168.22.69              Unknown                    device         
+...
+
+Running masscan externally to msfconsole and then importing the saved file
+
+msfdev@kali:~$ masscan -p80 -p80 192.168.22.0/24 -oX output.xml
+
+Starting masscan 1.0.3 (http://bit.ly/14GZzcT) at 2015-11-10 16:53:13 GMT
+ -- forced options: -sS -Pn -n --randomize-hosts -v --send-eth
+Initiating SYN Stealth Scan
+Scanning 256 hosts [1 port/host]
+msfdev@kali:~$ ./msfconsole       
+
+msf > db_import /home/msfdev/output.xml
+[*] Importing 'Masscan XML' data
+[*] Import: Parsing with 'Nokogiri v1.6.6.2'
+[*] Importing host 192.168..22.169
+[*] Importing host 192.168..22.147
+[*] Importing host 192.168..22.74
+[*] Importing host 192.168..22.69
+[*] Importing host 192.168..22.97
